@@ -10,9 +10,6 @@ kdialog --title "Dynamic Theme Generator - Dark Theme" --msgbox "A file picker w
 darkImagePath=$(kdialog --getopenfilename $HOME 'image/*')
 darkImageExtension=$(echo "${darkImagePath##*.}")
 
-## Display the path of images
-kdialog --title "Dynamic Theme Generator - Images Paths" --msgbox "Light Image Path: $lightImagePath \nDark Image Path: $darkImagePath"
-
 ## Show input to user to write the theme name
 themeName=$(kdialog --title "Dynamic Theme Generator - Theme name" --inputbox "What name would you like to
 use?" "DynamicTheme")
@@ -26,7 +23,7 @@ qdbus-qt5 $dbusRef Set "" value 1
 
 ## Create Metadata file
 wallpaperPath=$HOME/.local/share/wallpapers/$themeName
-mkdir -p $wallpaperPath
+mkdir -p "$wallpaperPath"
 touch $wallpaperPath/metadata.desktop
 
 ## Write in Metadata file
@@ -39,8 +36,8 @@ qdbus-qt5 $dbusRef Set "" value 2
 
 ## Copy LIGHT image
 lightImageFolder=$wallpaperPath/contents/images
-mkdir -p $lightImageFolder
-cp $lightImagePath $lightImageFolder/$screenResolution.$lightImageExtension
+mkdir -p "$lightImageFolder"
+cp "$lightImagePath" "$lightImageFolder/$screenResolution.$lightImageExtension"
 
 ## Show progressbar - Third step
 qdbus-qt5 $dbusRef setLabelText "Creating folders and copying the DARK image"
@@ -48,8 +45,8 @@ qdbus-qt5 $dbusRef Set "" value 3
 
 ## Copy DARK image
 darkImageFolder=$wallpaperPath/contents/images_dark
-mkdir -p $darkImageFolder
-cp $darkImagePath $darkImageFolder/$screenResolution.$darkImageExtension
+mkdir -p "$darkImageFolder"
+cp "$darkImagePath" "$darkImageFolder/$screenResolution.$darkImageExtension"
 
 ## Close progressbar
 qdbus-qt5 $dbusRef close
