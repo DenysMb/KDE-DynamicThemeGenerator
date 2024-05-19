@@ -1,14 +1,4 @@
-#!/bin/sh
-echo "---------- Dynamic Theme Generator ----------"
-
-## Select images and store it to variables
-kdialog --title "Dynamic Theme Generator - Light Theme" --msgbox "A file picker will open and you'll need to select the LIGHT image"
-lightImagePath=$(kdialog --getopenfilename $HOME 'image/*')
-lightImageExtension=$(echo "${lightImagePath##*.}")
-
-kdialog --title "Dynamic Theme Generator - Dark Theme" --msgbox "A file picker will open and you'll need to select the DARK image"
-darkImagePath=$(kdialog --getopenfilename $HOME 'image/*')
-darkImageExtension=$(echo "${darkImagePath##*.}")
+#!/usr/bin/env bash
 
 ## Show input to user to write the theme name
 while [ ! "$themeName" ]
@@ -19,47 +9,72 @@ do
     fi
 done
 
-## Get screen resolution
-screenResolution=$(xdpyinfo | grep dimensions | sed -r 's/^[^0-9]*([0-9]+x[0-9]+).*$/\1/')
+## Show input to user to write the theme author
+while [ ! "$themeAuthor" ]
+do
+    themeAuthor=$(kdialog --title "Dynamic Theme Generator - Theme author" --inputbox "What name would you like to use?" "DynamicTheme")
+    if [ ! "$themeName" ]; then
+        kdialog --error "Name should not be empty!"
+    fi
+done
+
+themeID="${themeName// /}"
+wallpaperPath="$HOME/.local/share/wallpapers/$themeID"
+
+## Select images and store it to variables
+l_path=$(kdialog --title "Dynamic Theme Generator - Light Image" --getopenfilename "$HOME" '*')
+l_ext="${l_path##*.}"
+
+d_path=$(kdialog --title "Dynamic Theme Generator - Dark Image" --getopenfilename "$HOME" '*')
+d_ext="${d_path##*.}"
+
+## Get image sizes
+l_width=$(identify -format "%w" "$l_path")> /dev/null
+l_height=$(identify -format "%h" "$l_path")> /dev/null
+
+d_width=$(identify -format "%w" "$d_path")> /dev/null
+d_height=$(identify -format "%h" "$d_path")> /dev/null
 
 ## Show progressbar - First step
-dbusRef=`kdialog --title "Dynamic Theme Generator - Generating Files" --progressbar "Generating the metadata file" 3`
-qdbus-qt5 $dbusRef Set "" value 1
-
-## Remove old wallpaper if wallpaper with same name exists
-wallpaperPath="$HOME/.local/share/wallpapers/$themeName"
-if [ -d "$wallpaperPath" ]; then
-    rm -r $wallpaperPath
-fi
+dbusRef=$(kdialog --title "Dynamic Theme Generator - Generating Files" --progressbar "Generating the metadata file" 3)
+qdbus $dbusRef Set "" value 1
 
 ## Create Metadata file
 mkdir -p "$wallpaperPath"
-touch "$wallpaperPath/metadata.desktop"
 
 ## Write in Metadata file
-echo "[Desktop Entry]" >> "$wallpaperPath/metadata.desktop"
-echo "Name=$themeName" >> "$wallpaperPath/metadata.desktop"
+cat << EOF > "$wallpaperPath/metadata.json"
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "$themeAuthor"
+            }
+        ],
+        "Id": "$themeID",
+        "Name": "$themeName"
+    }
+}
+EOF
 
-## Show progressbar - Second step
-qdbus-qt5 $dbusRef setLabelText "Creating folders and copying the LIGHT image"
-qdbus-qt5 $dbusRef Set "" value 2
+## Show progressbar - light image
+qdbus $dbusRef setLabelText "Creating folders and copying the light image"
+qdbus $dbusRef Set "" value 2
 
-## Copy LIGHT image
-lightImageFolder="$wallpaperPath/contents/images"
-mkdir -p "$lightImageFolder"
-cp "$lightImagePath" "$lightImageFolder/$screenResolution.$lightImageExtension"
+l_folder="$wallpaperPath/contents/images"
+mkdir -p "$l_folder"
+cp "$l_path" "$l_folder/${l_width}x${l_height}.$l_ext"
 
-## Show progressbar - Third step
-qdbus-qt5 $dbusRef setLabelText "Creating folders and copying the DARK image"
-qdbus-qt5 $dbusRef Set "" value 3
+## Show progressbar - dark image
+qdbus $dbusRef setLabelText "Creating folders and copying the dark image"
+qdbus $dbusRef Set "" value 3
 
-## Copy DARK image
-darkImageFolder="$wallpaperPath/contents/images_dark"
-mkdir -p "$darkImageFolder"
-cp "$darkImagePath" "$darkImageFolder/$screenResolution.$darkImageExtension"
+d_folder="$wallpaperPath/contents/images_dark"
+mkdir -p "$d_folder"
+cp "$d_path" "$d_folder/${d_width}x${d_height}.$d_ext"
 
 ## Close progressbar
-qdbus-qt5 $dbusRef close
+qdbus $dbusRef close
 
 ### Final message
 kdialog --title "Dynamic Theme Generator - Final" --msgbox "The wallpaper was successfully generated."
