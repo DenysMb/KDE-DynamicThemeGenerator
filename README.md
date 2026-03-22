@@ -1,6 +1,9 @@
 # KDE-DynamicThemeGenerator
 Simple script to generate dynamic wallpaper (light and dark) from two selected images.
 
+Requirements:
+- Kdialog
+
 To run it you need to:
 1. Download this script
 2. Right click on it then go to Properties > Permissions > Check "Is executable" > Press "Ok".
