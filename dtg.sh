@@ -1,80 +1,61 @@
 #!/usr/bin/env bash
 
-## Show input to user to write the theme name
-while [ ! "$themeName" ]
-do
-    themeName=$(kdialog --title "Dynamic Theme Generator - Theme name" --inputbox "What name would you like to use?" "DynamicTheme")
-    if [ ! "$themeName" ]; then
-        kdialog --error "Name should not be empty!"
+# --- Dependency Check ---
+if ! command -v identify &> /dev/null; then
+    kdialog --error "Program 'imagemagick' is not installed. Please install it for the script to work."
+    exit 1
+fi
+
+# --- Get User Input ---
+while [ -z "$themeName" ]; do
+    if ! themeName=$(kdialog --title "KDE Wallpaper Generator" --inputbox "Enter theme name:" "DynamicTheme"); then
+        exit
     fi
 done
 
-## Show input to user to write the theme author
-while [ ! "$themeAuthor" ]
-do
-    themeAuthor=$(kdialog --title "Dynamic Theme Generator - Theme author" --inputbox "What name would you like to use?" "DynamicTheme")
-    if [ ! "$themeName" ]; then
-        kdialog --error "Name should not be empty!"
+while [ -z "$themeAuthor" ]; do
+    if ! themeAuthor=$(kdialog --title "KDE Wallpaper Generator" --inputbox "Enter author name:" "$USER"); then
+        exit
     fi
 done
 
 themeID="${themeName// /}"
 wallpaperPath="$HOME/.local/share/wallpapers/$themeID"
 
-## Select images and store it to variables
-l_path=$(kdialog --title "Dynamic Theme Generator - Light Image" --getopenfilename "$HOME" '*')
+# --- File Selection ---
+if ! l_path=$(kdialog --title "Select LIGHT wallpaper" --getopenfilename "$HOME" 'Images (*.jpg *.png *.gif *.webp)'); then
+    exit
+fi
+
+if ! d_path=$(kdialog --title "Select DARK wallpaper" --getopenfilename "$HOME" 'Images (*.jpg *.png *.gif *.webp)'); then
+    exit
+fi
+
+# Get extensions and dimensions
 l_ext="${l_path##*.}"
+l_dim=$(identify -format "%wx%h" "${l_path}[0]")
 
-d_path=$(kdialog --title "Dynamic Theme Generator - Dark Image" --getopenfilename "$HOME" '*')
 d_ext="${d_path##*.}"
+d_dim=$(identify -format "%wx%h" "${d_path}[0]")
 
-## Get image sizes
-l_width=$(identify -format "%w" "$l_path")> /dev/null
-l_height=$(identify -format "%h" "$l_path")> /dev/null
+# --- File Generation ---
+mkdir -p "$wallpaperPath/contents/images"
+mkdir -p "$wallpaperPath/contents/images_dark"
 
-d_width=$(identify -format "%w" "$d_path")> /dev/null
-d_height=$(identify -format "%h" "$d_path")> /dev/null
-
-## Show progressbar - First step
-dbusRef=$(kdialog --title "Dynamic Theme Generator - Generating Files" --progressbar "Generating the metadata file" 3)
-qdbus $dbusRef Set "" value 1
-
-## Create Metadata file
-mkdir -p "$wallpaperPath"
-
-## Write in Metadata file
+# Create metadata.json
 cat << EOF > "$wallpaperPath/metadata.json"
 {
     "KPlugin": {
-        "Authors": [
-            {
-                "Name": "$themeAuthor"
-            }
-        ],
+        "Authors": [ { "Name": "$themeAuthor" } ],
         "Id": "$themeID",
         "Name": "$themeName"
     }
 }
 EOF
 
-## Show progressbar - light image
-qdbus $dbusRef setLabelText "Creating folders and copying the light image"
-qdbus $dbusRef Set "" value 2
+# Copying files
+cp "$l_path" "$wallpaperPath/contents/images/${l_dim}.${l_ext}"
+cp "$d_path" "$wallpaperPath/contents/images_dark/${d_dim}.${d_ext}"
 
-l_folder="$wallpaperPath/contents/images"
-mkdir -p "$l_folder"
-cp "$l_path" "$l_folder/${l_width}x${l_height}.$l_ext"
-
-## Show progressbar - dark image
-qdbus $dbusRef setLabelText "Creating folders and copying the dark image"
-qdbus $dbusRef Set "" value 3
-
-d_folder="$wallpaperPath/contents/images_dark"
-mkdir -p "$d_folder"
-cp "$d_path" "$d_folder/${d_width}x${d_height}.$d_ext"
-
-## Close progressbar
-qdbus $dbusRef close
-
-### Final message
-kdialog --title "Dynamic Theme Generator - Final" --msgbox "The wallpaper was successfully generated."
+# --- Final Message ---
+kdialog --title "Success!" --msgbox "The wallpaper has been created at:\n$wallpaperPath\n\nYou can now select it in your Desktop Settings."
